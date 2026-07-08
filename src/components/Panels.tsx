@@ -1,8 +1,9 @@
-import { ChangeEvent, ReactNode, useState } from 'react';
-import { BackgroundSpec, ShadowSpec } from '../types';
+import { ChangeEvent, ReactNode } from 'react';
+import { BackgroundSpec, GhostOpts, ShadowSpec } from '../types';
 import { BG_COLORS, BG_GRADIENTS, BG_SCENES, EXPORT_PRESETS } from '../lib/presets';
+import { DEFAULT_GHOST } from '../lib/ghost';
 
-export type PanelTab = 'background' | 'adjust' | 'export';
+export type PanelTab = 'background' | 'adjust' | 'ghost' | 'export';
 export type ExportFormat = 'png' | 'jpeg' | 'webp';
 
 interface Props {
@@ -21,9 +22,9 @@ interface Props {
   flipY: boolean;
   onFlipX: () => void;
   onFlipY: () => void;
-  onApplyRefresh: (smooth: number, brighten: number) => void;
-  onRevertRefresh: () => void;
-  canRevert: boolean;
+  ghost: GhostOpts | null;
+  onGhostChange: (g: GhostOpts | null) => void;
+  hasSubject: boolean;
   onRecut: () => void;
   onBgImageUpload: (f: File) => void;
   exportPresetId: string;
@@ -99,8 +100,10 @@ function Slider({
 
 export default function Panels(p: Props) {
   const bg = p.background;
-  const [smooth, setSmooth] = useState(60);
-  const [brighten, setBrighten] = useState(25);
+  const g = p.ghost;
+  const setG = (patch: Partial<GhostOpts>) => {
+    if (g) p.onGhostChange({ ...g, ...patch });
+  };
 
   const pickFile = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -111,13 +114,13 @@ export default function Panels(p: Props) {
   return (
     <aside className="panels">
       <div className="tabs">
-        {(['background', 'adjust', 'export'] as PanelTab[]).map((t) => (
+        {(['background', 'adjust', 'ghost', 'export'] as PanelTab[]).map((t) => (
           <button
             key={t}
             className={t === p.tab ? 'tab active' : 'tab'}
             onClick={() => p.setTab(t)}
           >
-            {t === 'background' ? 'Backdrop' : t === 'adjust' ? 'Adjust' : 'Export'}
+            {t === 'background' ? 'Backdrop' : t === 'adjust' ? 'Adjust' : t === 'ghost' ? 'Ghost' : 'Export'}
           </button>
         ))}
       </div>
@@ -248,39 +251,6 @@ export default function Panels(p: Props) {
             </div>
           </Section>
 
-          <Section title="Fabric refresh">
-            <Slider
-              label="Smooth"
-              value={smooth}
-              min={0}
-              max={100}
-              onChange={setSmooth}
-              format={(v) => `${v}%`}
-            />
-            <Slider
-              label="Brighten"
-              value={brighten}
-              min={0}
-              max={100}
-              onChange={setBrighten}
-              format={(v) => `${v}%`}
-            />
-            <button
-              className="btn primary full"
-              onClick={() => p.onApplyRefresh(smooth / 100, brighten / 100)}
-            >
-              ✨ Iron &amp; freshen
-            </button>
-            {p.canRevert && (
-              <button className="btn ghost full" onClick={p.onRevertRefresh}>
-                Revert refresh
-              </button>
-            )}
-            <div className="hint">
-              Smooths wrinkle shading and lifts brightness so garments look freshly pressed.
-            </div>
-          </Section>
-
           <Section title="Shadow">
             <Segmented
               value={p.shadow.kind}
@@ -329,6 +299,96 @@ export default function Panels(p: Props) {
               Discards manual erase/restore edits on this image and cuts it out again.
             </div>
           </Section>
+        </div>
+      )}
+
+      {p.tab === 'ghost' && (
+        <div className="panel-body">
+          <Section title="Ghost mannequin">
+            <button
+              className={g ? 'btn primary full' : 'btn ghost full'}
+              disabled={!p.hasSubject}
+              onClick={() => p.onGhostChange(g ? null : { ...DEFAULT_GHOST })}
+            >
+              {g ? '✓ Enabled — turn off' : 'Enable ghost mannequin'}
+            </button>
+            <div className="hint">
+              Gives the garment a worn, hollow 3-D shape with a visible interior at the
+              opening. Works best on flat-lay or mannequin photos shot straight on.
+            </div>
+          </Section>
+
+          {g && (
+            <>
+              <Section title="Garment">
+                <Segmented
+                  value={g.garment}
+                  options={[
+                    { v: 'shirt', label: 'Shirt / top' },
+                    { v: 'trousers', label: 'Trousers' },
+                  ]}
+                  onChange={(garment) => setG({ garment })}
+                />
+                <Segmented
+                  value={g.view}
+                  options={[
+                    { v: 'front', label: 'Front' },
+                    { v: 'back', label: 'Back' },
+                  ]}
+                  onChange={(view) => setG({ view })}
+                />
+                <Segmented
+                  value={g.fit}
+                  options={[
+                    { v: 'male', label: 'Male' },
+                    { v: 'female', label: 'Female' },
+                  ]}
+                  onChange={(fit) => setG({ fit })}
+                />
+              </Section>
+
+              <Section title="Body shape">
+                <Slider
+                  label="Volume"
+                  value={Math.round(g.volume * 100)}
+                  min={0}
+                  max={100}
+                  onChange={(v) => setG({ volume: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+              </Section>
+
+              <Section title={g.garment === 'shirt' ? 'Neck opening' : 'Waist opening'}>
+                <Slider
+                  label="Width"
+                  value={Math.round(g.neckWidth * 100)}
+                  min={0}
+                  max={100}
+                  onChange={(v) => setG({ neckWidth: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <Slider
+                  label="Depth"
+                  value={Math.round(g.neckDepth * 100)}
+                  min={0}
+                  max={100}
+                  onChange={(v) => setG({ neckDepth: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <Slider
+                  label="Position"
+                  value={Math.round(g.neckY * 100)}
+                  min={-100}
+                  max={100}
+                  onChange={(v) => setG({ neckY: v / 100 })}
+                />
+                <div className="hint">
+                  The opening reveals the garment&apos;s interior back panel, shaded with
+                  fabric color sampled from the photo. Set depth to 0 to hide it.
+                </div>
+              </Section>
+            </>
+          )}
         </div>
       )}
 

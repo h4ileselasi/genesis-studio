@@ -4,7 +4,7 @@ import { BackgroundSpec, ItemData, ItemMeta, ShadowSpec, Tool } from './types';
 import { EXPORT_PRESETS } from './lib/presets';
 import { removeBg } from './lib/removeBg';
 import { renderComposite } from './lib/compositor';
-import { fabricRefresh } from './lib/enhance';
+import { resolveSubject } from './lib/ghost';
 import EditorCanvas from './components/EditorCanvas';
 import Panels, { ExportFormat, PanelTab } from './components/Panels';
 
@@ -94,7 +94,10 @@ export default function App() {
         const img = await loadImage(url);
         const original = imageToCanvas(img, MAX_DIM);
         const id = crypto.randomUUID();
-        dataRef.current.set(id, { original, cutout: null, transform: { ...IDENTITY }, backup: null });
+        dataRef.current.set(id, {
+          original, cutout: null, transform: { ...IDENTITY },
+          ghost: null, ghostCache: null, cutoutRev: 0,
+        });
         added.push({
           id,
           name: f.name.replace(/\.[^.]+$/, '') || 'image',
@@ -136,6 +139,8 @@ export default function App() {
         try {
           const img = await loadImage(url);
           data.cutout = imageToCanvas(img);
+          data.cutoutRev++;
+          data.ghostCache = null;
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -204,7 +209,7 @@ export default function App() {
   const aspect = preset.w && preset.h ? preset.w / preset.h : null;
 
   const renderItem = (data: ItemData): HTMLCanvasElement => {
-    const sub = data.cutout!;
+    const sub = resolveSubject(data);
     const w = preset.w ?? sub.width;
     const h = preset.h ?? sub.height;
     const cv = document.createElement('canvas');
@@ -441,25 +446,11 @@ export default function App() {
             onFlipY={() => {
               if (selData) { selData.transform.flipY = !selData.transform.flipY; bump(); }
             }}
-            onApplyRefresh={(smooth, brighten) => {
-              if (!selData?.cutout) return;
-              const b = document.createElement('canvas');
-              b.width = selData.cutout.width;
-              b.height = selData.cutout.height;
-              b.getContext('2d')!.drawImage(selData.cutout, 0, 0);
-              selData.backup = b;
-              fabricRefresh(selData.cutout, { smooth, brighten });
-              bump();
+            ghost={selData?.ghost ?? null}
+            onGhostChange={(g) => {
+              if (selData) { selData.ghost = g; bump(); }
             }}
-            onRevertRefresh={() => {
-              if (!selData?.backup || !selData.cutout) return;
-              const c = selData.cutout.getContext('2d')!;
-              c.clearRect(0, 0, selData.cutout.width, selData.cutout.height);
-              c.drawImage(selData.backup, 0, 0);
-              selData.backup = null;
-              bump();
-            }}
-            canRevert={!!selData?.backup}
+            hasSubject={selected?.status === 'ready'}
             onRecut={recut}
             onBgImageUpload={(f) => setBackground({ kind: 'image', url: URL.createObjectURL(f) })}
             exportPresetId={exportPresetId}
