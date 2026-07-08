@@ -1,9 +1,11 @@
 # Genesis Studio
 
 Browser-based AI product-photo studio (an on-device Photoroom alternative). Background
-removal, retouch brushes (erase / restore / magic-heal), garment "iron & freshen", studio
-backdrops, orientation controls, and batch export — all running client-side. Nothing is
-uploaded to a server; the AI segmentation model runs in the browser via WebAssembly.
+removal, retouch brushes (erase / restore / magic-heal) with adjustable edge hardness and
+a cursor loupe magnifier, smart Select &amp; Remove (lasso + magic wand) for cleaning up
+leftover background patches, studio backdrops, orientation controls, and batch export —
+all running client-side. Nothing is uploaded to a server; the AI segmentation model runs
+in the browser via WebAssembly.
 
 ## Run locally
 
@@ -43,3 +45,5 @@ Vite + React + TypeScript. Key modules:
 - `src/lib/removeBg.ts` — on-device background removal (`@imgly/background-removal`)
 - `src/lib/compositor.ts` — canvas compositing, transforms, shadows
 - `src/lib/inpaint.ts` — magic-heal content-aware fill
+- `src/lib/select.ts` — Select &amp; Remove: magic-wand flood fill and smart lasso
+  (2-cluster color analysis keeps the garment, grabs the foreign remnant)

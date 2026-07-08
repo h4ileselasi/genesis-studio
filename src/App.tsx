@@ -1,10 +1,10 @@
 import { ChangeEvent, DragEvent, useCallback, useEffect, useRef, useState } from 'react';
 import JSZip from 'jszip';
-import { BackgroundSpec, ItemData, ItemMeta, ShadowSpec, Tool } from './types';
+import { BackgroundSpec, ItemData, ItemMeta, MagnifierSpec, SelectMode, ShadowSpec, Tool } from './types';
 import { EXPORT_PRESETS } from './lib/presets';
 import { removeBg } from './lib/removeBg';
 import { renderComposite } from './lib/compositor';
-import EditorCanvas from './components/EditorCanvas';
+import EditorCanvas, { EditorCanvasHandle } from './components/EditorCanvas';
 import Panels, { ExportFormat, PanelTab } from './components/Panels';
 
 const MAX_DIM = 2048;
@@ -58,6 +58,7 @@ const TOOLS: { v: Tool; label: string; icon: string; hint: string }[] = [
   { v: 'erase', label: 'Erase', icon: '◌', hint: 'Brush away leftover background' },
   { v: 'restore', label: 'Restore', icon: '✚', hint: 'Paint back parts the AI removed' },
   { v: 'heal', label: 'Heal', icon: '✦', hint: 'Magic-erase blemishes, text, reflections' },
+  { v: 'select', label: 'Select', icon: '⬚', hint: 'Smart-select a leftover patch, then remove it' },
 ];
 
 export default function App() {
@@ -72,6 +73,12 @@ export default function App() {
   const [shadow, setShadow] = useState<ShadowSpec>({ kind: 'ground', opacity: 0.35, blur: 24, offsetY: 14 });
   const [tool, setTool] = useState<Tool>('move');
   const [brushSize, setBrushSize] = useState(36);
+  const [hardness, setHardness] = useState(0.8);
+  const [magnifier, setMagnifier] = useState<MagnifierSpec>({ enabled: true, mode: 'zoom', zoom: 3 });
+  const [selectMode, setSelectMode] = useState<SelectMode>('lasso');
+  const [wandTolerance, setWandTolerance] = useState(28);
+  const [hasSelection, setHasSelection] = useState(false);
+  const editorRef = useRef<EditorCanvasHandle>(null);
   const [tab, setTab] = useState<PanelTab>('background');
   const [exportPresetId, setExportPresetId] = useState('original');
   const [format, setFormat] = useState<ExportFormat>('png');
@@ -356,6 +363,7 @@ export default function App() {
 
           <section className="stage">
             <EditorCanvas
+              ref={editorRef}
               meta={selected}
               data={selData}
               background={background}
@@ -363,9 +371,14 @@ export default function App() {
               shadow={shadow}
               tool={tool}
               brushSize={brushSize}
+              hardness={hardness}
+              magnifier={magnifier}
+              selectMode={selectMode}
+              wandTolerance={wandTolerance}
               aspect={aspect}
               editVersion={editVersion}
               onEdited={bump}
+              onSelectionChange={setHasSelection}
             />
 
             {selected && selected.status !== 'ready' && (
@@ -399,16 +412,81 @@ export default function App() {
                     {t.label}
                   </button>
                 ))}
-                {tool !== 'move' && (
-                  <input
-                    className="brush-slider"
-                    type="range"
-                    min={8}
-                    max={120}
-                    value={brushSize}
-                    title="Brush size"
-                    onChange={(e) => setBrushSize(Number(e.target.value))}
-                  />
+                {tool !== 'move' && tool !== 'select' && (
+                  <>
+                    <span className="tb-label">Size</span>
+                    <input
+                      className="brush-slider"
+                      type="range"
+                      min={8}
+                      max={120}
+                      value={brushSize}
+                      title="Brush size"
+                      onChange={(e) => setBrushSize(Number(e.target.value))}
+                    />
+                  </>
+                )}
+                {(tool === 'erase' || tool === 'restore') && (
+                  <>
+                    <span className="tb-label">Edge</span>
+                    <input
+                      className="brush-slider"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round(hardness * 100)}
+                      title="Brush hardness — left is soft, right is hard"
+                      onChange={(e) => setHardness(Number(e.target.value) / 100)}
+                    />
+                  </>
+                )}
+                {tool === 'select' && (
+                  <>
+                    <div className="mini-seg">
+                      <button
+                        className={selectMode === 'lasso' ? 'on' : ''}
+                        title="Draw a rough outline around the unwanted area"
+                        onClick={() => setSelectMode('lasso')}
+                      >
+                        Lasso
+                      </button>
+                      <button
+                        className={selectMode === 'wand' ? 'on' : ''}
+                        title="Click a spot to select similar colors around it"
+                        onClick={() => setSelectMode('wand')}
+                      >
+                        Wand
+                      </button>
+                    </div>
+                    {selectMode === 'wand' && (
+                      <>
+                        <span className="tb-label">Range</span>
+                        <input
+                          className="brush-slider"
+                          type="range"
+                          min={4}
+                          max={90}
+                          value={wandTolerance}
+                          title="How similar colors must be to join the selection"
+                          onChange={(e) => setWandTolerance(Number(e.target.value))}
+                        />
+                      </>
+                    )}
+                    {hasSelection && (
+                      <>
+                        <button
+                          className="tool danger"
+                          title="Erase the selected area (leaves transparency)"
+                          onClick={() => editorRef.current?.applySelection()}
+                        >
+                          ✕ Remove
+                        </button>
+                        <button className="tool" onClick={() => editorRef.current?.clearSelection()}>
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -440,6 +518,8 @@ export default function App() {
             onFlipY={() => {
               if (selData) { selData.transform.flipY = !selData.transform.flipY; bump(); }
             }}
+            magnifier={magnifier}
+            setMagnifier={setMagnifier}
             onRecut={recut}
             onBgImageUpload={(f) => setBackground({ kind: 'image', url: URL.createObjectURL(f) })}
             exportPresetId={exportPresetId}

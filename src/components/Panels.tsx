@@ -1,5 +1,5 @@
 import { ChangeEvent, ReactNode } from 'react';
-import { BackgroundSpec, ShadowSpec } from '../types';
+import { BackgroundSpec, MagnifierSpec, ShadowSpec } from '../types';
 import { BG_COLORS, BG_GRADIENTS, BG_SCENES, EXPORT_PRESETS } from '../lib/presets';
 
 export type PanelTab = 'background' | 'adjust' | 'export';
@@ -21,6 +21,8 @@ interface Props {
   flipY: boolean;
   onFlipX: () => void;
   onFlipY: () => void;
+  magnifier: MagnifierSpec;
+  setMagnifier: (m: MagnifierSpec) => void;
   onRecut: () => void;
   onBgImageUpload: (f: File) => void;
   exportPresetId: string;
@@ -281,6 +283,41 @@ export default function Panels(p: Props) {
                 onChange={(v) => p.setShadow({ ...p.shadow, offsetY: v })}
               />
             )}
+          </Section>
+
+          <Section title="Brush magnifier">
+            <Segmented
+              value={p.magnifier.enabled ? 'on' : 'off'}
+              options={[
+                { v: 'on', label: 'On' },
+                { v: 'off', label: 'Off' },
+              ]}
+              onChange={(v) => p.setMagnifier({ ...p.magnifier, enabled: v === 'on' })}
+            />
+            {p.magnifier.enabled && (
+              <>
+                <Segmented
+                  value={p.magnifier.mode}
+                  options={[
+                    { v: 'zoom', label: 'Canvas zoom' },
+                    { v: 'brush', label: 'Brush preview' },
+                  ]}
+                  onChange={(mode) => p.setMagnifier({ ...p.magnifier, mode })}
+                />
+                <Slider
+                  label="Zoom"
+                  value={p.magnifier.zoom}
+                  min={2}
+                  max={8}
+                  onChange={(v) => p.setMagnifier({ ...p.magnifier, zoom: v })}
+                  format={(v) => `${v}×`}
+                />
+              </>
+            )}
+            <div className="hint">
+              A loupe floats beside the cursor while you brush, so your hand never
+              hides the spot you&apos;re editing.
+            </div>
           </Section>
 
           <Section title="AI cutout">

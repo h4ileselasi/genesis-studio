@@ -384,7 +384,53 @@ body {
 
 .tool-icon { font-size: 14px; }
 
-.brush-slider { width: 110px; margin: 0 8px; accent-color: var(--accent); }
+.brush-slider { width: 96px; margin: 0 8px 0 4px; accent-color: var(--accent); }
+
+.toolbar {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 760px);
+}
+
+.tb-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.mini-seg {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 2px;
+  margin: 0 6px;
+}
+
+.mini-seg button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mini-seg button:hover { color: var(--text); }
+
+.mini-seg button.on {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+}
+
+.tool.danger { color: #ff5a8c; }
+.tool.danger:hover { color: #ff7ba3; }
 
 /* ---------- right panels ---------- */
 

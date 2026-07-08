@@ -25,7 +25,15 @@ export interface Transform {
   flipY: boolean;
 }
 
-export type Tool = 'move' | 'erase' | 'restore' | 'heal';
+export type Tool = 'move' | 'erase' | 'restore' | 'heal' | 'select';
+
+export type SelectMode = 'lasso' | 'wand';
+
+export interface MagnifierSpec {
+  enabled: boolean;
+  mode: 'zoom' | 'brush'; // canvas zoom loupe vs brush-profile preview
+  zoom: number; // 2..8
+}
 
 export type Status = 'queued' | 'removing' | 'ready' | 'error';
 
