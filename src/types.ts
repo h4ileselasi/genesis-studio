@@ -56,7 +56,8 @@ export interface GhostOpts {
 export interface GhostCache {
   key: string;
   canvas: HTMLCanvasElement;
-  scaleByRow: Float32Array;
+  scaleByRow: Float32Array; // horizontal scale per row (body profile)
+  dyByCol: Float32Array; // vertical shift per column (shoulder drape)
   cx: number;
 }
 
