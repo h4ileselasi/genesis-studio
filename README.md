@@ -43,5 +43,3 @@ Vite + React + TypeScript. Key modules:
 - `src/lib/removeBg.ts` — on-device background removal (`@imgly/background-removal`)
 - `src/lib/compositor.ts` — canvas compositing, transforms, shadows
 - `src/lib/inpaint.ts` — magic-heal content-aware fill
-- `src/lib/ghost.ts` — ghost mannequin: body-profile warp (male/female, shirt/trousers,
-  front/back), carved neck/waist opening with rendered interior back panel

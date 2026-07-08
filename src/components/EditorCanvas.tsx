@@ -2,7 +2,6 @@ import { PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { BackgroundSpec, ItemData, ItemMeta, ShadowSpec, Tool, Transform } from '../types';
 import { canvasToSubject, drawCover, layoutSubject, renderComposite, subjectToCanvas } from '../lib/compositor';
 import { HealPoint, healRegion } from '../lib/inpaint';
-import { cutoutToGhost, ghostToCutout, resolveSubject } from '../lib/ghost';
 
 interface Props {
   meta: ItemMeta | null;
@@ -91,31 +90,25 @@ export default function EditorCanvas(props: Props) {
       return;
     }
 
-    // Ghost mannequin (when enabled) is rendered in place of the raw cutout;
-    // it shares the cutout's dimensions so all layout math is unchanged.
-    const subject = resolveSubject(data);
-
     renderComposite({
       ctx,
       width: w,
       height: h,
       background,
       bgImage,
-      subject,
+      subject: data.cutout,
       transform: data.transform,
       shadow,
       checker: background.kind === 'transparent',
     });
 
-    // Pending heal stroke preview (stroke points are cutout coords — map
-    // through the ghost warp so the preview lands under the cursor)
+    // Pending heal stroke preview
     const st = strokeRef.current;
     if (st && st.tool === 'heal' && st.pts.length) {
-      const L = layoutSubject(w, h, subject.width, subject.height, data.transform);
+      const L = layoutSubject(w, h, data.cutout.width, data.cutout.height, data.transform);
       ctx.fillStyle = 'rgba(255, 90, 140, 0.35)';
       for (const p of st.pts) {
-        const g = cutoutToGhost(data, p.x, p.y);
-        const c = subjectToCanvas(g.x, g.y, L, data.transform, subject.width, subject.height);
+        const c = subjectToCanvas(p.x, p.y, L, data.transform, data.cutout.width, data.cutout.height);
         ctx.beginPath();
         ctx.arc(c.x, c.y, brushSize / 2, 0, Math.PI * 2);
         ctx.fill();
@@ -216,9 +209,7 @@ export default function EditorCanvas(props: Props) {
     const cut = data!.cutout!;
     const L = layoutSubject(w, h, cut.width, cut.height, data!.transform);
     const p = canvasToSubject(px, py, L, data!.transform, cut.width, cut.height);
-    // when ghost is on, undo its warps so brushes hit the real cutout pixels
-    const ip = ghostToCutout(data!, p.x, p.y);
-    return { x: ip.x, y: ip.y, L };
+    return { x: p.x, y: p.y, L };
   }
 
   function stampErase(from: { x: number; y: number }, to: { x: number; y: number }, r: number) {
@@ -241,7 +232,6 @@ export default function EditorCanvas(props: Props) {
       c.stroke();
     }
     c.restore();
-    data!.cutoutRev++;
   }
 
   function stampRestore(p: { x: number; y: number }, r: number) {
@@ -254,7 +244,6 @@ export default function EditorCanvas(props: Props) {
     c.clip();
     c.drawImage(data!.original, 0, 0, cut.width, cut.height);
     c.restore();
-    data!.cutoutRev++;
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLCanvasElement>) {
@@ -335,7 +324,6 @@ export default function EditorCanvas(props: Props) {
       const { data, onEdited } = propsRef.current;
       if (st.tool === 'heal' && data?.cutout) {
         healRegion(data.cutout, st.pts);
-        data.cutoutRev++;
       }
       onEdited();
       scheduleDraw();

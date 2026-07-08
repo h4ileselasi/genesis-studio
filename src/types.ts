@@ -39,35 +39,10 @@ export interface ItemMeta {
   error?: string;
 }
 
-export type GarmentKind = 'shirt' | 'trousers';
-export type GhostView = 'front' | 'back';
-export type GhostFit = 'male' | 'female';
-
-export interface GhostOpts {
-  garment: GarmentKind;
-  view: GhostView;
-  fit: GhostFit;
-  volume: number; // 0..1 body shaping strength
-  neckWidth: number; // 0..1 opening width
-  neckDepth: number; // 0..1 opening depth
-  neckY: number; // -1..1 vertical nudge of the opening
-}
-
-export interface GhostCache {
-  key: string;
-  canvas: HTMLCanvasElement;
-  scaleByRow: Float32Array; // horizontal scale per row (body profile)
-  dyByCol: Float32Array; // vertical shift per column (shoulder drape)
-  cx: number;
-}
-
 export interface ItemData {
   original: HTMLCanvasElement;
   cutout: HTMLCanvasElement | null;
   transform: Transform;
-  ghost: GhostOpts | null; // null = ghost mannequin off
-  ghostCache: GhostCache | null;
-  cutoutRev: number; // bumped on any cutout mutation to invalidate ghostCache
 }
 
 export interface ExportPreset {

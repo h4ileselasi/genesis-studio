@@ -4,7 +4,6 @@ import { BackgroundSpec, ItemData, ItemMeta, ShadowSpec, Tool } from './types';
 import { EXPORT_PRESETS } from './lib/presets';
 import { removeBg } from './lib/removeBg';
 import { renderComposite } from './lib/compositor';
-import { resolveSubject } from './lib/ghost';
 import EditorCanvas from './components/EditorCanvas';
 import Panels, { ExportFormat, PanelTab } from './components/Panels';
 
@@ -94,10 +93,7 @@ export default function App() {
         const img = await loadImage(url);
         const original = imageToCanvas(img, MAX_DIM);
         const id = crypto.randomUUID();
-        dataRef.current.set(id, {
-          original, cutout: null, transform: { ...IDENTITY },
-          ghost: null, ghostCache: null, cutoutRev: 0,
-        });
+        dataRef.current.set(id, { original, cutout: null, transform: { ...IDENTITY } });
         added.push({
           id,
           name: f.name.replace(/\.[^.]+$/, '') || 'image',
@@ -139,8 +135,6 @@ export default function App() {
         try {
           const img = await loadImage(url);
           data.cutout = imageToCanvas(img);
-          data.cutoutRev++;
-          data.ghostCache = null;
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -209,7 +203,7 @@ export default function App() {
   const aspect = preset.w && preset.h ? preset.w / preset.h : null;
 
   const renderItem = (data: ItemData): HTMLCanvasElement => {
-    const sub = resolveSubject(data);
+    const sub = data.cutout!;
     const w = preset.w ?? sub.width;
     const h = preset.h ?? sub.height;
     const cv = document.createElement('canvas');
@@ -446,11 +440,6 @@ export default function App() {
             onFlipY={() => {
               if (selData) { selData.transform.flipY = !selData.transform.flipY; bump(); }
             }}
-            ghost={selData?.ghost ?? null}
-            onGhostChange={(g) => {
-              if (selData) { selData.ghost = g; bump(); }
-            }}
-            hasSubject={selected?.status === 'ready'}
             onRecut={recut}
             onBgImageUpload={(f) => setBackground({ kind: 'image', url: URL.createObjectURL(f) })}
             exportPresetId={exportPresetId}
